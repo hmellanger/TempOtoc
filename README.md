@@ -10,6 +10,8 @@
 
 TempOtoc is a small desktop companion that takes care of a simple question: *where does your day go?*
 
+**Logging starts automatically.** Once TempOtoc runs, it tracks your time on its own — sessions and the idle gaps between them are recorded without you having to do anything. On top of that, the journal is fully yours: you can complete, correct and refine every entry with start/end comments, edits and deletions whenever you want.
+
 It runs quietly in the background. When you sit down to work, you press a button and say in one sentence what you're starting to do. When you stop, you press again, and you say what happened. In the evening, the weekend, the month, the year: TempOtoc shows you the map of your time, period by period, with your comments written next to each slice.
 
 No automatic tracking, no analysis of what you do on your machine: TempOtoc only notes what you tell it. It's a journal, not a cop.
@@ -32,7 +34,7 @@ No automatic tracking, no analysis of what you do on your machine: TempOtoc only
 
 ## What it does
 
-- **Clock in, in one sentence.** A "Start" button with a comment, a "Finish" button with a comment. The end comment is optional.
+- **Automatic by default.** Time is logged on its own — sessions and idle gaps are captured without manual timers. You then layer meaning on top: a "Start" button with a comment, a "Finish" button with a comment (optional), plus editing and deletion of any entry.
 - **See your time.** A dashboard with four views: Day (the list of periods, minute by minute), Week, Month, Year (charts and totals). Idle periods appear too — the time between two sessions is visible, not hidden.
 - **Filter.** A search field in the Day view selects the periods whose start comment contains a word — for example all "restarting" sessions, and the statistics are recomputed on the filter.
 - **Edit.** Every comment is editable directly in the list, including the ones on idle periods.
