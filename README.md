@@ -42,7 +42,7 @@ A single Python application, compiled into one self-contained `.exe` (PyInstalle
 
 ## License
 
-To be defined.
+Licensed under the [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0) — see the [LICENSE](LICENSE) file for details.
 
 ---
 
