@@ -14,7 +14,7 @@ TempOtoc is a small desktop companion that takes care of a simple question: *whe
 
 It runs quietly in the background. When you sit down to work, you press a button and say in one sentence what you're starting to do. When you stop, you press again, and you say what happened. In the evening, the weekend, the month, the year: TempOtoc shows you the map of your time, period by period, with your comments written next to each slice.
 
-No automatic tracking, no analysis of what you do on your machine: TempOtoc only notes what you tell it. It's a journal, not a cop.
+TempOtoc is your daily companion to keep track of your time effortlessly, and to understand at last where your days are fleeing.
 
 ## Screenshots
 
