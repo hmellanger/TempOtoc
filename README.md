@@ -4,8 +4,6 @@
 
 **Your time, told.**
 
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD5C?style=for-the-badge&logo=buymeacoffee&logoColor=white)](https://www.buymeacoffee.com/hugues_mellanger)
-
 </div>
 
 ## The project
@@ -47,3 +45,11 @@ Licensed under the [Apache License, Version 2.0](https://www.apache.org/licenses
 ---
 
 *Made with coffee and minute timers. TempOtoc — your time, told.*
+
+<div align="center">
+
+If you want to support my work:
+
+<a href="https://www.buymeacoffee.com/hugues_mellanger"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD5C?style=for-the-badge&logo=buymeacoffee&logoColor=white" width="300"></a>
+
+</div>
