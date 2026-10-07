@@ -56,6 +56,17 @@ The journal is a text file (`activity_log.jsonl`) — readable, editable, backup
 
 A single Python application, compiled into one self-contained `.exe` (PyInstaller). A small local HTTP server serves the dashboard; the journal is a simple JSON file, line by line. No database, no cloud, no telemetry.
 
+## Build the .exe
+
+From the repository root:
+
+```bash
+pip install pyinstaller
+pyinstaller --noconsole --onefile --name Tempotoc app.py
+```
+
+The resulting binary is written to `dist/Tempotoc.exe` — copy it anywhere on a Windows machine and run it. The `Tempotoc.spec` file in the repo mirrors this exact configuration, so `pyinstaller Tempotoc.spec` produces an identical build.
+
 ## License
 
 Licensed under the [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0) — see the [LICENSE](LICENSE) file for details.
