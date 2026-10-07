@@ -2,7 +2,7 @@
 
 ![TempOtoc](logo.png)
 
-**Your time, told.**
+**Your time, explained.**
 
 </div>
 
@@ -62,7 +62,7 @@ Licensed under the [Apache License, Version 2.0](https://www.apache.org/licenses
 
 ---
 
-*Made with coffee and minute timers. TempOtoc — your time, told.*
+*Made with coffee and minute timers. TempOtoc — your time, explained.*
 
 <div align="center">
 
