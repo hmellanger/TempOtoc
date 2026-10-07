@@ -14,6 +14,22 @@ It runs quietly in the background. When you sit down to work, you press a button
 
 No automatic tracking, no analysis of what you do on your machine: TempOtoc only notes what you tell it. It's a journal, not a cop.
 
+## Screenshots
+
+<div align="center">
+
+**Planning view — the week at a glance**
+
+![Planning view](screenshot_planning.png)
+
+<br>
+
+**Day view — hour by hour**
+
+![Day view](screenshot_day.png)
+
+</div>
+
 ## What it does
 
 - **Clock in, in one sentence.** A "Start" button with a comment, a "Finish" button with a comment. The end comment is optional.
