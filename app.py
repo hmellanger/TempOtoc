@@ -322,14 +322,15 @@ def load_notes():
 
 
 def last_start_comment():
-    """Commentaire de DEBUT de la derniere periode d'activite. Sert de reprise
-    automatique : journalise sur le 'start' quand la reprise est detectee toute
-    seule (clavier/souris apres une periode d'inactivite)."""
+    """Commentaire de DEBUT de la derniere periode d'activite (qu'il soit vide
+    ou non). Sert de pre-remplissage automatique : journalise sur le 'start'
+    quand la reprise est detectee toute seule (clavier/souris apres une periode
+    d'inactivite)."""
     sessions = load_sessions()
-    for s, e, sc, ec in reversed(sessions):
-        if sc:
-            return sc
-    return ""
+    if not sessions:
+        return ""
+    s, e, sc, ec = sessions[-1]
+    return sc or ""
 
 
 def last_end_comment():
