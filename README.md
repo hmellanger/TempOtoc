@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="logo.png" alt="TempOtoc" width="280">
+![TempOtoc](logo.png)
 
 **Your time, explained.**
 
