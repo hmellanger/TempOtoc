@@ -540,6 +540,10 @@ DASHBOARD = r"""<!DOCTYPE html>
  .delEndBtn{background:var(--panel2);border:1px solid var(--border);color:var(--text);
   cursor:pointer;font-size:12px;font-weight:600;padding:2px 6px;border-radius:6px}
  .delEndBtn:hover{background:var(--btn);border-color:var(--accent)}
+ td.timeCell{display:flex;align-items:center;gap:4px}
+ .cmtIconBtn{background:var(--panel2);border:1px solid var(--border);color:var(--text);
+  cursor:pointer;font-size:13px;padding:2px 5px;border-radius:6px;line-height:1}
+ .cmtIconBtn:hover{background:var(--btn);border-color:var(--accent)}
  textarea{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--border);
   border-radius:8px;padding:8px;font-size:14px;font-family:inherit;resize:vertical}
  #tip{display:none;position:fixed;background:var(--panel2);border:1px solid var(--border);
@@ -912,12 +916,13 @@ function delEnd(ts){
  fetch("/api/delete_session",{method:"POST",
   body:JSON.stringify({ts:ts})}).then(()=>load());
 }
-function editCmt(td){
+function editCmt(td,restore){
  if(editing)return;
  editing=true;
- const old=td.textContent;
+ const old=restore!==undefined?restore:td.textContent;
+ const cur=(td.dataset.type==="note")?old:(td.dataset.ec==="1"?"":old);
  const inp=document.createElement("input");
- inp.type="text";inp.value=old;inp.className="cmtEdit";
+ inp.type="text";inp.value=cur;inp.className="cmtEdit";
  td.textContent="";td.appendChild(inp);inp.focus();
  const done=(save)=>{
   inp.remove();editing=false;
@@ -951,6 +956,7 @@ function editTime(td){
  inp.value=oldFull.replace(" ","T").slice(0,16);
  td.textContent="";td.appendChild(inp);inp.focus();
  const done=(save)=>{
+  if(inp.dataset.skip){inp.remove();editing=false;return;}
   inp.remove();editing=false;
   if(!save){td.textContent=oldText;return;}
   const nv=inp.value;
@@ -969,6 +975,18 @@ function editTime(td){
   if(e.key==="Escape"){e.preventDefault();done(false);}
  });
  inp.addEventListener("blur",()=>done(true));
+ // Icone commentaire de fin : presente uniquement quand la periode se termine
+ // ici et que son commentaire 'end' est vide (data-ec="1"). Un commentaire
+ // 'end' deja rempli s'edite directement sur la ligne d'inactivite en dessous.
+ // Clic sur l'icone : annule la sauvegarde de l'heure (blur) et bascule la
+ // cellule en edition de commentaire (editCmt -> POST /api/edit_comment).
+ if(td.dataset.ec==="1"){
+  const btn=document.createElement("button");
+  btn.className="cmtIconBtn";btn.textContent="\u{1F4AC}";
+  btn.title="Add end comment";
+  btn.onclick=(e)=>{e.stopPropagation();inp.dataset.skip="1";inp.remove();editing=false;editCmt(td,oldText);};
+  td.appendChild(btn);
+ }
 }
 function renderDay(items,dv){
  // frise 24h d'abord, liste détaillée des périodes APRÈS la frise
@@ -1039,6 +1057,7 @@ function renderDay(items,dv){
     ' onclick="editTime(this)">'+s.start+"</td>";
   const endCell=s.open?'<td>'+endTxt+"</td>":
     '<td class="timeCell" data-ts="'+s.end_ts+'" data-type="end"'+
+    ' data-ec="'+(s.end_comment?"0":"1")+'"'+
     ' data-full="'+s.end_ts.replace("T"," ")+'" title="Click to edit end time"'+
     ' onclick="editTime(this)">'+endTxt+
     // croix de suppression de l'heure de fin : uniquement sur la derniere
