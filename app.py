@@ -533,9 +533,10 @@ DASHBOARD = r"""<!DOCTYPE html>
  .inprog{color:var(--bar);font-weight:600}
  .timeCell{cursor:pointer}
  .timeCell:hover{color:var(--accent)}
- input.timeEdit{width:100%;min-width:0;background:var(--panel2);color:var(--text);
+ input.timeEdit{flex:1;min-width:0;width:auto;background:var(--panel2);color:var(--text);
   border:1px solid var(--accent);border-radius:6px;padding:4px 6px;
   font-size:14px;font-family:inherit;font-style:normal}
+ .editWrap{display:flex;align-items:center;gap:4px;width:100%}
  .endCell{display:flex;align-items:center;gap:4px}
  .delEndBtn{background:var(--panel2);border:1px solid var(--border);color:var(--text);
   cursor:pointer;font-size:12px;font-weight:600;padding:2px 6px;border-radius:6px}
@@ -957,6 +958,7 @@ function editCmt(td,restore){
 // (pairing du journal casse).
 function editTime(td){
  if(editing)return;
+ if(td.dataset.noEdit){delete td.dataset.noEdit;return;}
  editing=true;
  const oldFull=td.dataset.full;  // 'YYYY-MM-DD HH:MM:SS'
  const oldText=td.textContent;
@@ -964,10 +966,15 @@ function editTime(td){
  inp.type="datetime-local";
  inp.className="timeEdit";
  inp.value=oldFull.replace(" ","T").slice(0,16);
- td.textContent="";td.appendChild(inp);inp.focus();
+ td.textContent="";
+ const wrap=document.createElement("div");
+ wrap.className="editWrap";
+ wrap.appendChild(inp);
+ td.appendChild(wrap);
+ inp.focus();
  const done=(save)=>{
-  if(inp.dataset.skip){inp.remove();editing=false;return;}
-  inp.remove();editing=false;
+  if(inp.dataset.skip){wrap.remove();editing=false;return;}
+  wrap.remove();editing=false;
   if(!save){td.textContent=oldText;return;}
   const nv=inp.value;
   if(!nv){td.textContent=oldText;return;}
@@ -990,17 +997,23 @@ function editTime(td){
  // 'end' deja rempli s'edite directement sur la ligne d'inactivite en dessous.
  // Clic sur l'icone : annule la sauvegarde de l'heure (blur) et ouvre la popup
  // de saisie du commentaire de fin (POST /api/edit_comment sur le ts 'end').
+ // mousedown+preventDefault evite le blur prematre ; stopPropagation evite que
+ // le click bulle jusqu'au td (qui relancerait editTime et recrerait le controle).
  if(td.dataset.ec==="1"){
   const btn=document.createElement("button");
   btn.className="cmtIconBtn";btn.textContent="\u{1F4AC}";
   btn.title="Add end comment";
-  btn.addEventListener("mousedown",e=>{
-   e.preventDefault();  // empeche le blur du champ datetime (qui retire le bouton)
+  const open=(e)=>{
+   e.preventDefault();e.stopPropagation();
    inp.dataset.skip="1";
-   inp.remove();editing=false;
+   wrap.remove();editing=false;
+   td.textContent=oldText;  // la cellule retrouve son heure ; la popup gere le commentaire
+   td.dataset.noEdit="1";  // le click qui suit (bulle sur le td) ne relance pas editTime
    openEndCmt(td.dataset.ts);
-  });
-  td.appendChild(btn);
+  };
+  btn.addEventListener("mousedown",open);
+  btn.addEventListener("click",e=>e.stopPropagation());
+  wrap.appendChild(btn);
  }
 }
 // Popup de commentaire de fin : ouverte par l'icone a droite du controle
