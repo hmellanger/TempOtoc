@@ -973,7 +973,7 @@ function editTime(td){
  td.appendChild(wrap);
  inp.focus();
  const done=(save)=>{
-  if(inp.dataset.skip){wrap.remove();editing=false;return;}
+  if(inp.dataset.skip){td.textContent=oldText;wrap.remove();editing=false;return;}
   wrap.remove();editing=false;
   if(!save){td.textContent=oldText;return;}
   const nv=inp.value;
@@ -991,12 +991,8 @@ function editTime(td){
   if(e.key==="Enter"){e.preventDefault();done(true);}
   if(e.key==="Escape"){e.preventDefault();done(false);}
  });
- inp.addEventListener("blur",()=>done(true));
- // Icone commentaire de fin : presente uniquement quand la periode se termine
- // ici et que son commentaire 'end' est vide (data-ec="1"). Un commentaire
- // 'end' deja rempli s'edite directement sur la ligne d'inactivite en dessous.
- // Clic sur l'icone : annule la sauvegarde de l'heure (blur) et ouvre la popup
- // de saisie du commentaire de fin (POST /api/edit_comment sur le ts 'end').
+ const blurH=()=>done(true);
+ inp.addEventListener("blur",blurH);
  // mousedown+preventDefault evite le blur prematre ; stopPropagation evite que
  // le click bulle jusqu'au td (qui relancerait editTime et recrerait le controle).
  if(td.dataset.ec==="1"){
@@ -1005,11 +1001,11 @@ function editTime(td){
   btn.title="Add end comment";
   const open=(e)=>{
    e.preventDefault();e.stopPropagation();
-   inp.dataset.skip="1";
-   wrap.remove();editing=false;
-   td.textContent=oldText;  // la cellule retrouve son heure ; la popup gere le commentaire
-   td.dataset.noEdit="1";  // le click qui suit (bulle sur le td) ne relance pas editTime
-   openEndCmt(td.dataset.ts);
+   inp.removeEventListener("blur",blurH);  // coupe le blur avant tout nettoyage
+   td.textContent=oldText;                // restaure l'heure dans la cellule
+   wrap.remove();editing=false;           // retire controle + icone
+   td.dataset.noEdit="1";                 // le click qui bubble sur le td ne relance pas editTime
+   openEndCmt(td.dataset.ts);             // ouvre la popup commentaire de fin
   };
   btn.addEventListener("mousedown",open);
   btn.addEventListener("click",e=>e.stopPropagation());
