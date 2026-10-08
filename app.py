@@ -540,9 +540,8 @@ DASHBOARD = r"""<!DOCTYPE html>
  .delEndBtn{background:var(--panel2);border:1px solid var(--border);color:var(--text);
   cursor:pointer;font-size:12px;font-weight:600;padding:2px 6px;border-radius:6px}
  .delEndBtn:hover{background:var(--btn);border-color:var(--accent)}
- td.timeCell{display:flex;align-items:center;gap:4px}
  .cmtIconBtn{background:var(--panel2);border:1px solid var(--border);color:var(--text);
-  cursor:pointer;font-size:13px;padding:2px 5px;border-radius:6px;line-height:1}
+  cursor:pointer;font-size:13px;padding:2px 5px;border-radius:6px;line-height:1;margin-left:4px}
  .cmtIconBtn:hover{background:var(--btn);border-color:var(--accent)}
  textarea{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--border);
   border-radius:8px;padding:8px;font-size:14px;font-family:inherit;resize:vertical}
@@ -616,6 +615,17 @@ DASHBOARD = r"""<!DOCTYPE html>
    <button onclick="submitReason(false)">Cancel</button>
   </div>
   <div id="reasonMsg" class="hint"></div>
+ </div>
+</div>
+<div id="endCmtModal" class="modal">
+ <div class="popup">
+  <h2>End comment</h2>
+  <textarea id="endCmtText" rows="3" placeholder="e.g. lunch break, meeting over…"></textarea>
+  <div class="srow">
+   <button onclick="submitEndCmt(true)">Confirm</button>
+   <button onclick="submitEndCmt(false)">Cancel</button>
+  </div>
+  <div id="endCmtMsg" class="hint"></div>
  </div>
 </div>
 <div id="tip"></div>
@@ -978,15 +988,42 @@ function editTime(td){
  // Icone commentaire de fin : presente uniquement quand la periode se termine
  // ici et que son commentaire 'end' est vide (data-ec="1"). Un commentaire
  // 'end' deja rempli s'edite directement sur la ligne d'inactivite en dessous.
- // Clic sur l'icone : annule la sauvegarde de l'heure (blur) et bascule la
- // cellule en edition de commentaire (editCmt -> POST /api/edit_comment).
+ // Clic sur l'icone : annule la sauvegarde de l'heure (blur) et ouvre la popup
+ // de saisie du commentaire de fin (POST /api/edit_comment sur le ts 'end').
  if(td.dataset.ec==="1"){
   const btn=document.createElement("button");
   btn.className="cmtIconBtn";btn.textContent="\u{1F4AC}";
   btn.title="Add end comment";
-  btn.onclick=(e)=>{e.stopPropagation();inp.dataset.skip="1";inp.remove();editing=false;editCmt(td,oldText);};
+  btn.addEventListener("mousedown",e=>{
+   e.preventDefault();  // empeche le blur du champ datetime (qui retire le bouton)
+   inp.dataset.skip="1";
+   inp.remove();editing=false;
+   openEndCmt(td.dataset.ts);
+  });
   td.appendChild(btn);
  }
+}
+// Popup de commentaire de fin : ouverte par l'icone a droite du controle
+// d'heure de fin. Enregistre le commentaire sur l'evenement 'end' du journal
+// (POST /api/edit_comment) puis re-charge la liste.
+let endCmtTs="";
+function openEndCmt(ts){
+ endCmtTs=ts;
+ document.getElementById("endCmtText").value="";
+ document.getElementById("endCmtMsg").textContent="";
+ document.getElementById("endCmtModal").classList.add("open");
+ document.getElementById("endCmtText").focus();
+}
+function submitEndCmt(ok){
+ document.getElementById("endCmtModal").classList.remove("open");
+ if(!ok)return;
+ const c=document.getElementById("endCmtText").value;
+ fetch("/api/edit_comment",{method:"POST",
+  body:JSON.stringify({ts:endCmtTs,type:"end",comment:c})})
+  .then(r=>r.json()).then(d=>{
+   if(!d.ok)document.getElementById("endCmtMsg").textContent="Save refused.";
+   load();
+  }).catch(()=>{});
 }
 function renderDay(items,dv){
  // frise 24h d'abord, liste détaillée des périodes APRÈS la frise
@@ -1041,6 +1078,20 @@ function renderDay(items,dv){
  // ouverte (session en cours), elle n'est pas terminee -> pas de croix.
  const lastIdx=items.reduce((acc,s,j)=>(!s.note?j:acc),-1);
  const showEndDel=lastIdx>=0&&!items[lastIdx].open;
+ // croix de suppression sur la ligne d'inactivite : UNIQUEMENT sur la derniere
+ // ligne du tableau. La ligne d'inactivite est rendue juste apres la periode
+ // qui se termine ; elle est donc la derniere ligne quand cette periode est la
+ // derniere de la liste (items[lastIdx]) ET qu'elle est rendue (sec>0).
+ const lastInactTs=(()=>{
+  const s=items[lastIdx];
+  if(!s||s.note||!s.end_comment)return null;
+  const p=n=>String(n).padStart(2,"0");
+  const now=new Date();
+  const today=now.getFullYear()+"-"+p(now.getMonth()+1)+"-"+p(now.getDate());
+  let sec=0;
+  if(s.end_full.slice(0,10)===today)sec=(now-new Date(s.end_full))/1000;
+  return sec>0?s.end_ts:null;
+ })();
  items.forEach((s,i)=>{
   if(s.note){tb+='<tr class="noteRow"><td colspan="4" class="cmtCell" data-ts="'+s.ts_iso+
       '" data-type="note" title="Click to edit" onclick="editCmt(this)">'+esc(s.comment)+"</td>"+
@@ -1084,7 +1135,7 @@ function renderDay(items,dv){
     if(s.end_full.slice(0,10)===today)sec=(now-new Date(s.end_full))/1000;}
    if(sec>0)tb+='<tr class="inactRow"><td></td><td></td><td>'+fmt(sec)+
        '</td><td class="cmtCell" data-ts="'+s.end_ts+'" data-type="end" title="Click to edit" onclick="editCmt(this)">'+esc(s.end_comment)+"</td>"+
-       '<td><button class="delBtn" title="Delete period end" onclick="delEnd(\''+s.end_ts+'\')">✕</button></td></tr>';
+       '<td>'+(s.end_ts===lastInactTs?'<button class="delBtn" title="Delete period end" onclick="delEnd(\''+s.end_ts+'\')">✕</button>':"")+'</td></tr>';
   }
  });
  tb+="</table>";
