@@ -1057,10 +1057,7 @@ function renderDay(items,dv){
   const x0=(a.getHours()+a.getMinutes()/60)/24*tl.width;
   const x1=Math.max((b.getHours()+b.getMinutes()/60)/24*tl.width,x0+2);
   t.fillStyle=T.bar;t.fillRect(x0,28,x1-x0,20);
-  const tips=[];
-  if(s.start_comment)tips.push(s.start_comment);
-  if(s.end_comment)tips.push("End: "+s.end_comment);
-  if(tips.length)tlSegs.push({x0:x0,x1:x1,text:tips.join(" — ")});
+  if(s.start_comment)tlSegs.push({x0:x0,x1:x1,text:s.start_comment});
   // periode d'inactivite avant cette session : commentaire de fin de la
   // session precedente (explique l'arret) -> zone grise entre les deux
   const prev=items.filter(i=>!i.note&&i.end_full&&i.end_full<=s.start_full).pop();
@@ -1068,7 +1065,7 @@ function renderDay(items,dv){
    const pe=new Date(prev.end_full);
    const px0=(pe.getHours()+pe.getMinutes()/60)/24*tl.width;
    t.fillStyle=T.grey;t.fillRect(px0,28,Math.max(x0-px0,2),20);
-   tlSegs.push({x0:px0,x1:x0,text:"Idle: "+prev.end_comment});
+   tlSegs.push({x0:px0,x1:x0,text:prev.end_comment});
   }
  });
  const tip=document.getElementById("tip");
