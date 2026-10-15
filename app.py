@@ -976,8 +976,16 @@ function editTime(td){
   lnk.className="cmtIconBtn snapBtn";lnk.textContent="\u{1F517}";
   lnk.title="Set start to the exact end of the previous period";
   lnk.addEventListener("mousedown",e=>{
-   e.preventDefault();e.stopPropagation();
-   inp.value=td.dataset.prevend.replace(" ","T").slice(0,16);
+   e.preventDefault();e.stopPropagation();        // empeche le blur du champ de declencher done(true)
+   inp.removeEventListener("blur",blurH);          // coupe le save automatique (si blurH existe)
+   const target=td.dataset.prevend.replace(" ","T");  // ex: "2026-10-07T08:30:00"
+   wrap.remove();editing=false;                    // ferme l'edition sans passer par le champ
+   fetch("/api/edit_time",{method:"POST",
+    body:JSON.stringify({ts:td.dataset.ts,type:td.dataset.type,new_ts:target})})
+    .then(r=>r.json()).then(d=>{
+     if(!d.ok)alert("Snap refused: overlap or pairing constraint with the previous period.");
+     load();                                        // refresh de l'affichage
+    }).catch(()=>{});
   });
   wrap.appendChild(lnk);
  }
