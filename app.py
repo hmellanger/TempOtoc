@@ -218,7 +218,7 @@ def edit_time(ts_str, etype, new_ts_str):
                             evs[j]["ts"], "%Y-%m-%dT%H:%M:%S")
                     except Exception:
                         break
-                    if new_ts <= prev_end:
+                    if new_ts < prev_end:
                         return False
                     break
                 if evs[j].get("type") == "start":
@@ -969,9 +969,23 @@ function editTime(td){
  td.textContent="";
  const wrap=document.createElement("div");
  wrap.className="editWrap";
+ // bouton "caler" : debut = fin precise de la periode precedente (uniquement
+ // en edition d'une heure de DEBUT, s'il existe une precedente).
+ if(td.dataset.type==="start"&&td.dataset.prevend){
+  const lnk=document.createElement("button");
+  lnk.className="cmtIconBtn snapBtn";lnk.textContent="\u{1F517}";
+  lnk.title="Set start to the exact end of the previous period";
+  lnk.addEventListener("mousedown",e=>{
+   e.preventDefault();e.stopPropagation();
+   inp.value=td.dataset.prevend.replace(" ","T").slice(0,16);
+  });
+  wrap.appendChild(lnk);
+ }
  wrap.appendChild(inp);
  td.appendChild(wrap);
  inp.focus();
+ // curseur initialement sur la saisie de l'HEURE (par defaut il est sur le jour)
+ try{inp.setSelectionRange(11,16);}catch(e){}
  const done=(save)=>{
   if(inp.dataset.skip){td.textContent=oldText;wrap.remove();editing=false;return;}
   wrap.remove();editing=false;
@@ -1105,12 +1119,17 @@ function renderDay(items,dv){
   // commentaire de fin : affiche sur la ligne d'inactivite en dessous, pas ici
   const cmt=s.start_comment?esc(s.start_comment):"";
   const endTxt=s.open?"<span class=\"inprog\">In progress</span>":s.end;
+  // heure de fin de la periode d'activite precedente (pour le bouton "caler")
+  let prevEnd="";
+  for(let j=i-1;j>=0;j--){if(!items[j].note&&items[j].end_ts&&!items[j].open){prevEnd=items[j].end_ts;break;}}
   // cellules d'heure editeables (clic -> champ date+heure complet). Les
   // horodatages exacts des evenements (start_ts/end_ts) servent de base a
   // l'edition. La derniere periode fermee porte une croix de suppression de
   // son heure de fin (delEnd -> l'evenement 'end' est retire du journal).
   const startCell='<td class="timeCell" data-ts="'+s.start_ts+'" data-type="start"'+
-    ' data-full="'+s.start_ts.replace("T"," ")+'" title="Click to edit start time"'+
+    ' data-full="'+s.start_ts.replace("T"," ")+'"'+
+    (prevEnd?' data-prevend="'+prevEnd+'"':'')+
+    ' title="Click to edit start time"'+
     ' onclick="editTime(this)">'+s.start+"</td>";
   const endCell=s.open?'<td>'+endTxt+"</td>":
     '<td class="timeCell" data-ts="'+s.end_ts+'" data-type="end"'+
