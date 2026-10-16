@@ -78,12 +78,36 @@ LOG_LOCK = threading.Lock()
 
 
 def log_event(etype, ts, comment=""):
+    """Journalise un evenement dans activity_log.jsonl (append).
+    Garde-fou anti-doublon : si la DERNIERE ligne du journal porte le meme
+    type ('start'/'end'), l'evenement est ignore (la premiere ligne reste) —
+    deux 'start' ou deux 'end' consecutifs sont interdits. Retourne True si
+    l'evenement a bien ete ecrit, False s'il a ete ignore."""
     ev = {"type": etype, "ts": ts.strftime("%Y-%m-%dT%H:%M:%S")}
     if comment:
         ev["comment"] = comment
     with LOG_LOCK:
+        # Lecture de la derniere ligne non vide (pas d'enregistrement si le
+        # fichier n'existe pas encore).
+        last_type = None
+        if LOG_FILE.exists():
+            try:
+                for line in reversed(LOG_FILE.read_text(encoding="utf-8").splitlines()):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    d = json.loads(line)
+                    last_type = d.get("type")
+                    break
+            except (OSError, ValueError):
+                pass  # fichier illisible : on autorise l'ecriture
+        if etype in ("start", "end") and last_type == etype:
+            safe_print("[%s] %s ignore (doublon consecutif)"
+                       % (ts.strftime("%H:%M:%S"), etype))
+            return False
         with open(LOG_FILE, "a", encoding="utf-8") as f:
             f.write(json.dumps(ev) + "\n")
+    return True
 
 
 def edit_comment(ts_str, etype, comment):
