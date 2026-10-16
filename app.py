@@ -347,6 +347,27 @@ def last_end_comment():
     return ""
 
 
+def last_log_type():
+    """Type de la derniere entree journalisee dans activity_log.jsonl.
+    Retourne 'start' si une periode d'activite est ouverte (derniere ligne
+    = 'start'), sinon ('end', 'note') ou None si le fichier est vide."""
+    if not LOG_FILE.exists():
+        return None
+    try:
+        with open(LOG_FILE, "r", encoding="utf-8") as f:
+            last = ""
+            for line in f:
+                line = line.strip()
+                if line:
+                    last = line
+            if not last:
+                return None
+            d = json.loads(last)
+            return d.get("type")
+    except (OSError, ValueError):
+        return None
+
+
 def overlap(session, d0, d1):
     s, e = session[0], session[1]
     if e is None:
@@ -1247,7 +1268,11 @@ class Handler(BaseHTTPRequestHandler):
                 anchor = datetime.now()
             body = json.dumps(build_stats(period, anchor, filt)).encode("utf-8")
         elif parsed.path == "/api/state":
-            body = json.dumps({"measuring": MEASURING}).encode("utf-8")
+            # Bouton derive de la DERNIERE entree du journal activity_log.jsonl :
+            # 'start' = periode d'activite ouverte -> bouton "Arreter" ;
+            # sinon ('end', 'note', fichier vide) -> bouton "Demarrer".
+            measuring = (last_log_type() == "start")
+            body = json.dumps({"measuring": bool(measuring)}).encode("utf-8")
         elif parsed.path == "/api/lastcomment":
             q = parse_qs(parsed.query)
             mode = q.get("mode", ["end"])[0]
