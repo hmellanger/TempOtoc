@@ -1532,9 +1532,17 @@ def poll_loop():
 
 def main():
     global STATE
-    STATE = idle_seconds() < IDLE_THRESHOLD
-    if STATE:
-        log_event("start", datetime.now())
+    # Si la derniere ligne du journal est un 'start', une periode d'activite
+    # etait deja ouverte au moment de l'arret precedent : on ne re-ouvre pas
+    # une session (sinon deux lignes 'start' consecutives, interdit). On
+    # repart simplement de l'etat 'mesure en cours'.
+    last = last_log_type()
+    if last == "start":
+        STATE = True
+    else:
+        STATE = idle_seconds() < IDLE_THRESHOLD
+        if STATE:
+            log_event("start", datetime.now())
 
     server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     server.daemon_threads = True
