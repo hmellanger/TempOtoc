@@ -1290,8 +1290,9 @@ class Handler(BaseHTTPRequestHandler):
             # Finalise la session en cours (heure de fin enregistree tout de
             # suite), puis arret propre planifie a 3 s : le dashboard a le
             # temps de se recharger (serveur vivant) avec la periode finalisee.
-            if STATE:
-                log_event("end", datetime.now())
+            # close_session est idempotent : le WM_QUIT qui suit ne re-journalisera
+            # pas un second 'end'.
+            close_session()
             schedule_shutdown(3.0)
             return
         else:
@@ -1392,8 +1393,7 @@ class Handler(BaseHTTPRequestHandler):
             # Finalise la session en cours (heure de fin enregistree tout de
             # suite), puis arret propre planifie a 3 s : le dashboard a le
             # temps de se recharger (serveur vivant) avec la periode finalisee.
-            if STATE:
-                log_event("end", datetime.now())
+            close_session()
             schedule_shutdown(3.0)
         else:
             self.send_response(404)
@@ -1437,6 +1437,18 @@ def safe_print(*a):
         print(*a)
 
 
+def close_session(comment=""):
+    """Ferme la session en cours (une seule fois) et journalise le 'end'.
+    Idempotent : une fois STATE passe a False, les appels ulterieurs ne
+    re-journalisent rien. A utiliser sur TOUS les chemins d'arret propre
+    (shutdown API, WM_QUIT, WM_ENDSESSION) pour eviter deux lignes 'end'
+    consecutives."""
+    global STATE
+    if STATE:
+        log_event("end", datetime.now(), comment)
+        STATE = False
+
+
 def run_msg_window():
     # Fenetre de messages cachee (hwnd=None) : recoit WM_ENDSESSION
     # (logoff / arret du PC) et WM_QUIT (arret demande par le dashboard).
@@ -1455,13 +1467,11 @@ def run_msg_window():
     def wnd_proc(hwnd, msg, wparam, lparam):
         if msg == 0x0016:  # WM_ENDSESSION (wparam != 0 = session arretee)
             if wparam:
-                if STATE:
-                    log_event("end", datetime.now())
+                close_session()
                 ctypes.windll.kernel32.ExitProcess(0)
             return 1
         if msg == 0x0012:  # WM_QUIT : arret propre demande
-            if STATE:
-                log_event("end", datetime.now())
+            close_session()
             ctypes.windll.kernel32.ExitProcess(0)
             return 1
         return ctypes.windll.user32.DefWindowProcW(hwnd, msg, wparam, lparam)
