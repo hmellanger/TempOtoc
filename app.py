@@ -1498,6 +1498,13 @@ def run_msg_window():
             close_session()
             ctypes.windll.kernel32.ExitProcess(0)
             return 1
+        if msg == 0x01A4:  # WM_POWERBROADCAST (veille / reprise)
+            # PBT_APMSUSPEND = 0x801e : le PC entre en veille.
+            # Ferme la periode d'activite en cours a l'instant de la veille.
+            if wparam == 0x801e:
+                safe_print("VEILLE detectee, fin de periode enregistree")
+                close_session()
+            return 1
         return ctypes.windll.user32.DefWindowProcW(hwnd, msg, wparam, lparam)
 
     proc = WNDPROC(wnd_proc)
