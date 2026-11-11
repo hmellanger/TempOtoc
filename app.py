@@ -19,9 +19,63 @@ if getattr(sys, "frozen", False):
 else:
     BASE = Path(__file__).resolve().parent
 LOG_FILE = BASE / "activity_log.jsonl"
+BAK_FILE = BASE / "activity_log.jsonl.bak"
+CONFIG_FILE = BASE / "config.json"
+
+DEFAULT_BACKUP_MIN = 60   # intervalle de sauvegarde par defaut (minutes)
 
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 RUN_NAME = "Tempotoc"
+
+
+def backup_interval_min():
+    """Intervalle de sauvegarde (minutes) lu dans config.json ; defaut 60."""
+    try:
+        cfg = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+        v = int(cfg.get("backup_min", DEFAULT_BACKUP_MIN))
+        return v if v >= 1 else DEFAULT_BACKUP_MIN
+    except (OSError, ValueError):
+        return DEFAULT_BACKUP_MIN
+
+
+def set_backup_interval(minutes):
+    """Persiste l'intervalle de sauvegarde (minutes) dans config.json."""
+    minutes = max(1, int(minutes))
+    try:
+        cfg = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        cfg = {}
+    cfg["backup_min"] = minutes
+    CONFIG_FILE.write_text(json.dumps(cfg), encoding="utf-8")
+    return minutes
+
+
+def save_backup():
+    """Copie activity_log.jsonl -> activity_log.jsonl.bak (sous LOG_LOCK
+    pour un instant coherent avec les journalisations en cours)."""
+    with LOG_LOCK:
+        if LOG_FILE.exists():
+            BAK_FILE.write_text(LOG_FILE.read_text(encoding="utf-8"),
+                                encoding="utf-8")
+
+
+def backup_loop():
+    """Thread de sauvegarde : copie le journal toutes `backup_interval_min()`
+    minutes. Le premier backup a lieu immediatement au demarrage, puis selon
+    l'intervalle (re-lu a chaque cycle pour prendre en compte un changement
+    fait dans les Parametres)."""
+    last = 0.0
+    while True:
+        iv = backup_interval_min() * 60.0
+        now = time.time()
+        if now - last >= iv:
+            try:
+                save_backup()
+                last = now
+            except OSError:
+                pass
+        time.sleep(5.0)
+
 
 
 def autostart_enabled():
@@ -563,6 +617,7 @@ DASHBOARD = r"""<!DOCTYPE html>
   background:var(--btn);color:var(--muted);font-size:13px}
  .toggle button.on{background:var(--sel);color:#fff;font-weight:bold}
  .toggle button.off.on{background:#6e2b2b}
+ input#bkMin{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:14px;text-align:center}
  .closeX{float:right;cursor:pointer;color:var(--muted);font-size:18px;margin:-6px -6px 0 0}
  .noteRow td{color:var(--amber);font-style:italic;border-bottom:1px dashed var(--border)}
  .inactRow td{color:var(--muted);font-style:italic;background:var(--panel2);
@@ -633,7 +688,6 @@ DASHBOARD = r"""<!DOCTYPE html>
 </div>
 <canvas id="chart" width="1100" height="320"></canvas>
 <div id="dayview"></div>
-<div id="hint" class="hint">Click a bar to explore the lower level (year → month → day).</div>
 <div id="settingsModal" class="modal">
  <div class="popup">
   <span class="closeX" onclick="closeSettings()" title="Close">&times;</span>
@@ -646,6 +700,13 @@ DASHBOARD = r"""<!DOCTYPE html>
    </span>
   </div>
   <div id="autostartMsg" class="hint"></div>
+  <div class="srow">
+   <span>Backup interval (minutes)</span>
+   <span class="togspan">
+    <input id="bkMin" type="number" min="1" max="1440" style="width:70px" onchange="setBackup(this.value)">
+   </span>
+  </div>
+  <div id="backupMsg" class="hint"></div>
   <div class="srow">
    <button id="killBtn" onclick="killProcess()">Kill process</button>
   </div>
@@ -743,6 +804,10 @@ function openSettings(){
  fetch("/api/autostart").then(r=>r.json()).then(d=>{
   showAutostart(d.enabled,"");
  }).catch(()=>{});
+ fetch("/api/backup").then(r=>r.json()).then(d=>{
+  document.getElementById("bkMin").value=d.minutes;
+  document.getElementById("backupMsg").textContent="";
+ }).catch(()=>{});
 }
 function closeSettings(){
  document.getElementById("settingsModal").classList.remove("open");
@@ -760,6 +825,16 @@ function setAutostart(on){
              :"TempOtoc will no longer launch at startup.")
     :("Error: "+(d.error||"unknown")));
   }).catch(()=>showAutostart(null,"Connection error"));
+}
+function setBackup(v){
+ v=Math.max(1,Math.min(1440,parseInt(v,10)||60));
+ document.getElementById("bkMin").value=v;
+ fetch("/api/backup",{method:"POST",body:JSON.stringify({minutes:v})})
+  .then(r=>r.json()).then(d=>{
+   document.getElementById("backupMsg").textContent=d.ok?
+    ("Backup interval set to "+d.minutes+" minutes. Saved now.")
+    :("Error: "+(d.error||"unknown"));
+  }).catch(()=>document.getElementById("backupMsg").textContent="Connection error");
 }
 function killProcess(){
  if(!confirm("Close TempOtoc? The current session end time is saved, then the process exits."))return;
@@ -795,7 +870,6 @@ function render(items){
  // En vue Planning, le canvas est vide : on le masque pour liberer toute
  // la hauteur d'ecran au profit de la grille.
  cv.style.display=(S.period=="planning")?"none":"block";
- document.getElementById("hint").style.display=(S.period=="planning")?"none":"block";
  const T=themeColors();
  const d=new Date(S.anchor+"T12:00:00");
  let label="";
@@ -1304,6 +1378,8 @@ class Handler(BaseHTTPRequestHandler):
             body = json.dumps({"comment": comment}).encode("utf-8")
         elif parsed.path == "/api/autostart":
             body = json.dumps({"enabled": autostart_enabled()}).encode("utf-8")
+        elif parsed.path == "/api/backup":
+            body = json.dumps({"minutes": backup_interval_min()}).encode("utf-8")
         elif parsed.path == "/api/shutdown":
             body = b'{"ok": true}'
             self.send_response(200)
@@ -1332,7 +1408,23 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
-        if parsed.path == "/api/autostart":
+        if parsed.path == "/api/backup":
+            length = int(self.headers.get("Content-Length", 0))
+            try:
+                minutes = int(json.loads(self.rfile.read(length).decode("utf-8")).get("minutes"))
+                set_backup_interval(minutes)
+                save_backup()   # backup immediat quand l'intervalle est pose
+                result = {"ok": True, "minutes": backup_interval_min()}
+            except Exception as e:
+                result = {"ok": False, "minutes": backup_interval_min(),
+                          "error": str(e)}
+            body = json.dumps(result).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        elif parsed.path == "/api/autostart":
             length = int(self.headers.get("Content-Length", 0))
             try:
                 on = bool(json.loads(self.rfile.read(length).decode("utf-8")).get("on"))
@@ -1582,6 +1674,7 @@ def main():
     server.daemon_threads = True
     threading.Thread(target=server.serve_forever, daemon=True).start()
     threading.Thread(target=poll_loop, daemon=True).start()
+    threading.Thread(target=backup_loop, daemon=True).start()
 
     # Thread principal : boucle de messages de la fenetre cachee. En mode
     # sans console, aucune fenetre n'est creee : le process est completement
